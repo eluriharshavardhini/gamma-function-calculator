@@ -13,7 +13,9 @@ Raises:
     GammaOverflowError  - result exceeds standard 64-bit float range
 """
 
-from scratch_math import PI, custom_sqrt, custom_exp, custom_ln, custom_sin, custom_abs
+from scratch_math import (
+    PI, custom_sqrt, custom_exp, custom_ln, custom_sin, custom_abs
+)
 
 
 class GammaDomainError(ValueError):
@@ -102,8 +104,8 @@ def gamma(x):
 
     Domain guards:
       - x == 0 or a negative integer -> GammaDomainError (true pole)
-      - x < -160ish                  -> underflow to 0.0 (documented, not an error)
-      - x > 171.5ish                 -> GammaOverflowError (exceeds float64 range)
+      - x < -160ish -> underflow to 0.0 (documented, not an error)
+      - x > 171.5ish -> GammaOverflowError (exceeds float64 range)
 
     For x < 0.5 (and not a pole), Euler's reflection formula is used:
         Gamma(x) * Gamma(1 - x) = pi / sin(pi * x)
@@ -119,25 +121,26 @@ def gamma(x):
         GammaOverflowError: if the true result would exceed the range of
             a 64-bit float.
     """
-    # --- Guard 1: true poles (zero and negative integers) -------------------
+    # --- Guard 1: true poles (zero and negative integers) ---
     if _is_integer(x) and x <= 0:
         raise GammaDomainError(
-            f"Gamma(x) is undefined at x = {x}: zero and negative integers are poles."
+            f"Gamma(x) is undefined at x = {x}: zero and negative "
+            "integers are poles."
         )
 
-    # --- Guard 2: underflow region --------------------------------------------
+    # --- Guard 2: underflow region ---
     if x < -160:
         # Far enough negative that the true value underflows to 0.0 in
         # standard 64-bit floats; this is a graceful boundary, not an error.
         return 0.0
 
-    # --- Guard 3: overflow region --------------------------------------------
+    # --- Guard 3: overflow region ---
     if x > 171.5:
         raise GammaOverflowError(
             f"Gamma({x}) exceeds the range representable by a 64-bit float."
         )
 
-    # --- Case A: x < 0.5 -> use Euler's reflection formula --------------------
+    # --- Case A: x < 0.5 -> use Euler's reflection formula ---
     # The Lanczos series below is only accurate for x > 0.5, so for smaller
     # (including negative, non-pole) x we "reflect" into that accurate range.
     if x < 0.5:
@@ -152,5 +155,5 @@ def gamma(x):
             )
         return PI / denom
 
-    # --- Case B: x >= 0.5 -> Lanczos approximation applies directly -----------
+    # --- Case B: x >= 0.5 -> Lanczos approximation applies directly ---
     return _lanczos_positive(x)

@@ -72,7 +72,9 @@ def custom_sqrt(x, tolerance=1e-15, max_iterations=100):
         ValueError: if x is negative.
     """
     if x < 0:
-        raise ValueError("custom_sqrt: cannot take the square root of a negative number.")
+        raise ValueError(
+            "custom_sqrt: cannot take the square root of a negative number."
+        )
     if x == 0:
         return 0.0
 
@@ -128,11 +130,12 @@ def custom_exp(x, terms=200):
         reduced_x /= 2
         k += 1
 
-    # --- Step 2: Taylor series on the reduced (small) value -----------------
-    term = 1.0   # current term of the series (starts at the n=0 term, x^0/0! = 1)
+    # --- Step 2: Taylor series on the reduced (small) value ---------------
+    term = 1.0   # current term (n=0 term is x^0/0! = 1)
     total = 1.0  # running sum of the series
     for n in range(1, terms):
-        term *= reduced_x / n  # term_n = term_{n-1} * x / n  (builds x^n / n! incrementally)
+        # term_n = term_{n-1} * x / n  (builds x^n / n! incrementally)
+        term *= reduced_x / n
         total += term
         if custom_abs(term) < 1e-18:
             break  # remaining terms are negligible -- stop early

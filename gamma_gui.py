@@ -99,8 +99,10 @@ class GammaApp(tk.Tk):
         # A 1px border frames the screen, visually separating it from the
         # graphite body -- mimicking the recessed LCD panel of a real
         # calculator rather than a flat colored rectangle.
-        screen_frame = tk.Frame(outer, bg=SCREEN_BG, highlightbackground="#000000",
-                                 highlightthickness=1)
+        screen_frame = tk.Frame(
+            outer, bg=SCREEN_BG, highlightbackground="#000000",
+            highlightthickness=1
+        )
         screen_frame.pack(fill="x")
 
         self.history_var = tk.StringVar(value="")
@@ -132,10 +134,22 @@ class GammaApp(tk.Tk):
         keypad.pack(padx=16, pady=(0, 16))
 
         # Row 0: function keys (clear, backspace, sign toggle, decimal point)
-        self._make_key(keypad, "C", self._on_clear, KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 0)
-        self._make_key(keypad, "\u232b", self._on_backspace, KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 1)
-        self._make_key(keypad, "\u00b1", self._on_sign, KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 2)
-        self._make_key(keypad, ".", lambda: self._on_digit("."), KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 3)
+        self._make_key(
+            keypad, "C", self._on_clear,
+            KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 0
+        )
+        self._make_key(
+            keypad, "\u232b", self._on_backspace,
+            KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 1
+        )
+        self._make_key(
+            keypad, "\u00b1", self._on_sign,
+            KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 2
+        )
+        self._make_key(
+            keypad, ".", lambda: self._on_digit("."),
+            KEY_FUNC_BG, KEY_FUNC_FG, KEY_FUNC_ACTIVE, 0, 3
+        )
 
         # Rows 1-3: digits 7-9, 4-6, 1-3 (standard calculator digit layout)
         digit_rows = [("7", "8", "9"), ("4", "5", "6"), ("1", "2", "3")]
@@ -151,8 +165,10 @@ class GammaApp(tk.Tk):
 
         # Row 4: "0" spans two columns (matches the classic calculator layout
         # where 0 is wider than the other digit keys)
-        self._make_key(keypad, "0", lambda: self._on_digit("0"), KEY_NUM_BG, KEY_NUM_FG,
-                        KEY_NUM_ACTIVE, 4, 0, columnspan=2)
+        self._make_key(
+            keypad, "0", lambda: self._on_digit("0"),
+            KEY_NUM_BG, KEY_NUM_FG, KEY_NUM_ACTIVE, 4, 0, columnspan=2
+        )
 
         # Gamma key: spans rows 1-4 on the right-hand column, visually playing
         # the role a normal calculator's tall "=" key plays.
@@ -170,7 +186,9 @@ class GammaApp(tk.Tk):
             cursor="hand2",
             command=self._on_evaluate,
         )
-        gamma_btn.grid(row=1, column=3, rowspan=4, padx=5, pady=5, sticky="nsew")
+        gamma_btn.grid(
+            row=1, column=3, rowspan=4, padx=5, pady=5, sticky="nsew"
+        )
 
         # Keyboard shortcuts, so a live demo doesn't require clicking every
         # digit with the mouse -- typing on the physical keyboard works too.
@@ -181,7 +199,8 @@ class GammaApp(tk.Tk):
         self.bind(".", lambda event: self._on_digit("."))
         self.bind("<Escape>", lambda event: self._on_clear())
 
-    def _make_key(self, parent, label, command, bg, fg, active_bg, row, col, columnspan=1):
+    def _make_key(self, parent, label, command, bg, fg, active_bg,
+                  row, col, columnspan=1):
         """
         Create one flat, borderless calculator key and place it in the grid.
 
@@ -207,12 +226,16 @@ class GammaApp(tk.Tk):
             activeforeground=fg,
             bd=0,
             relief="flat",
-            width=5 if columnspan == 1 else 11,  # wide keys need double the width
+            # wide keys (like "0") need double the width
+            width=5 if columnspan == 1 else 11,
             height=2,
             cursor="hand2",
             command=command,
         )
-        btn.grid(row=row, column=col, columnspan=columnspan, padx=5, pady=5, sticky="nsew")
+        btn.grid(
+            row=row, column=col, columnspan=columnspan,
+            padx=5, pady=5, sticky="nsew"
+        )
         return btn
 
     # ----------------------------------------------------------------
@@ -246,9 +269,11 @@ class GammaApp(tk.Tk):
             self._start_fresh_entry()
 
         if self.current_entry.startswith("-"):
-            self.current_entry = self.current_entry[1:]  # remove existing minus sign
+            # remove existing minus sign
+            self.current_entry = self.current_entry[1:]
         elif self.current_entry != "0":
-            self.current_entry = "-" + self.current_entry  # add a minus sign
+            # add a minus sign
+            self.current_entry = "-" + self.current_entry
         self._refresh_screen()
 
     def _on_backspace(self):
@@ -304,7 +329,7 @@ class GammaApp(tk.Tk):
         except GammaOverflowError:
             # The true result would exceed a 64-bit float's range.
             self._show_error(_format_x(x), "Out of range")
-        except Exception:  # pragma: no cover - safety net for unforeseen errors
+        except Exception:  # pragma: no cover - unforeseen error safety net
             self._show_error(_format_x(x), "Error")
 
     def _show_error(self, x_label, message):
@@ -322,7 +347,9 @@ class GammaApp(tk.Tk):
         size (large for short numeric results, smaller for longer error
         text so it never wraps across multiple lines)."""
         self.display_var.set(self.current_entry)
-        self.display_label.configure(fg=SCREEN_ERR if self.has_error else SCREEN_FG)
+        self.display_label.configure(
+            fg=SCREEN_ERR if self.has_error else SCREEN_FG
+        )
 
         # Adaptive font size: short numeric results get the big calculator
         # look; longer error text shrinks to fit on one line instead of
