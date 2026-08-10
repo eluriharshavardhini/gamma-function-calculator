@@ -31,6 +31,13 @@ SCREEN_ERR = "#e0a4a4"        # muted rose for errors, not bright red
 DISPLAY_FONT_FAMILY = "Consolas"   # monospace, genuine calculator feel
 LABEL_FONT_FAMILY = "Segoe UI"     # used for button labels (not the screen)
 
+# Accessibility: a focus ring color, distinct from every other color in the
+# palette, so a keyboard user tabbing between keys can always see which one
+# is currently focused. Invisible (blends into BODY_BG) until a key
+# actually receives keyboard focus, at which point Tkinter switches the
+# button's border to this color automatically.
+FOCUS_RING_COLOR = "#7fb3ff"
+
 # KeyStyle bundles a key's resting/active colors into one object, instead
 # of passing three separate bg/fg/active_bg arguments to _make_key() for
 # every button. This both reduces argument count (Pylint's
@@ -56,6 +63,14 @@ KEY_FUNC_STYLE = KeyStyle(
 KEY_ACCENT_STYLE = KeyStyle(
     bg="#4d6e8c", fg="#f2f5f7", active_bg="#3e5a74"
 )  # muted steel blue for the Gamma ("=") key
+
+# GridNav bundles the two lookup tables used for arrow-key grid
+# navigation into one object -- the same pattern as KeyStyle above.
+# Keeps GammaApp's instance attribute count within Pylint's default
+# limit while grouping two genuinely related pieces of state together.
+GridNav = namedtuple(  # pylint: disable=too-few-public-methods
+    "GridNav", ["position_to_widget", "widget_to_position"]
+)
 
 
 # GammaApp inherits tk.Tk's public interface (mainloop, etc.) and adds
@@ -94,6 +109,14 @@ class GammaApp(tk.Tk):  # pylint: disable=too-few-public-methods
         self.current_entry = "0"
         self.just_evaluated = False
         self.has_error = False
+
+        # --- Grid navigation state --------------------------------------
+        # Maps every (row, col) cell -- including cells covered by a wide
+        # or tall key's span -- to the button occupying it, and maps each
+        # button back to its top-left "anchor" position. Together these
+        # let arrow keys move focus spatially (up/down/left/right) across
+        # the actual visual grid, not just forward/backward like Tab does.
+        self._grid_nav = GridNav(position_to_widget={}, widget_to_position={})
 
         self._build_screen()
         self._build_keypad()
@@ -200,11 +223,35 @@ class GammaApp(tk.Tk):  # pylint: disable=too-few-public-methods
             relief="flat",
             width=6,
             cursor="hand2",
+            highlightthickness=2,
+            highlightbackground=BODY_BG,
+            highlightcolor=FOCUS_RING_COLOR,
             command=self._on_evaluate,
         )
         gamma_btn.grid(
             row=1, column=3, rowspan=4, padx=5, pady=5, sticky="nsew"
         )
+
+        # Bug fix: a mouse click on a tk.Button does NOT automatically give
+        # it keyboard focus (only Tab does that by default) -- so without
+        # this, focus_get() never actually returned a calculator key after
+        # clicking one, and every arrow-key press silently did nothing.
+        # Binding focus_set() to the press event fixes that.
+        gamma_btn.bind("<Button-1>", lambda event: gamma_btn.focus_set())
+
+        # Arrow keys are bound directly on this widget (not only at the
+        # window level) so they fire reliably the instant this key has
+        # focus, regardless of Tk's bindtag propagation order.
+        gamma_btn.bind("<Up>", lambda event: self._move_focus(-1, 0))
+        gamma_btn.bind("<Down>", lambda event: self._move_focus(1, 0))
+        gamma_btn.bind("<Left>", lambda event: self._move_focus(0, -1))
+        gamma_btn.bind("<Right>", lambda event: self._move_focus(0, 1))
+
+        # Register the Gamma key's full 4-row span for grid navigation,
+        # same as _make_key does for the wide "0" key's column span.
+        for spanned_row in range(1, 5):
+            self._grid_nav.position_to_widget[(spanned_row, 3)] = gamma_btn
+        self._grid_nav.widget_to_position[gamma_btn] = (1, 3)
 
         # Keyboard shortcuts, so a live demo doesn't require clicking every
         # digit with the mouse -- typing on the physical keyboard works too.
@@ -214,6 +261,13 @@ class GammaApp(tk.Tk):  # pylint: disable=too-few-public-methods
             self.bind(d, lambda event, d=d: self._on_digit(d))
         self.bind(".", lambda event: self._on_digit("."))
         self.bind("<Escape>", lambda event: self._on_clear())
+
+        # Accessibility: arrow-key grid navigation (up/down/left/right)
+        # is bound directly on each individual key -- see _make_key() and
+        # the Gamma button above -- rather than here at the window level.
+        # Binding it in both places would fire _move_focus() twice per
+        # keypress (once from the widget's own bindtag, once from the
+        # window's), causing focus to visibly skip over a key.
 
     # pylint: disable=too-many-arguments,too-many-positional-arguments
     # 6 parameters (one over the default limit of 5) after already
@@ -256,13 +310,79 @@ class GammaApp(tk.Tk):  # pylint: disable=too-few-public-methods
             width=5 if columnspan == 1 else 11,
             height=2,
             cursor="hand2",
+            # Accessibility: a visible focus ring for keyboard (Tab) users.
+            # Invisible at rest (matches the body background), and switches
+            # to FOCUS_RING_COLOR automatically when the key gains focus.
+            highlightthickness=2,
+            highlightbackground=BODY_BG,
+            highlightcolor=FOCUS_RING_COLOR,
             command=command,
         )
         btn.grid(
             row=row, column=col, columnspan=columnspan,
             padx=5, pady=5, sticky="nsew"
         )
+
+        # Bug fix: a mouse click on a tk.Button does NOT automatically give
+        # it keyboard focus (only Tab does that by default) -- so without
+        # this, focus_get() never actually returned a calculator key after
+        # clicking one, and every arrow-key press silently did nothing.
+        # Binding focus_set() to the press event fixes that.
+        btn.bind("<Button-1>", lambda event, b=btn: b.focus_set())
+
+        # Arrow keys are bound directly on this widget (not only at the
+        # window level) so they fire reliably the instant this key has
+        # focus, regardless of Tk's bindtag propagation order.
+        btn.bind("<Up>", lambda event: self._move_focus(-1, 0))
+        btn.bind("<Down>", lambda event: self._move_focus(1, 0))
+        btn.bind("<Left>", lambda event: self._move_focus(0, -1))
+        btn.bind("<Right>", lambda event: self._move_focus(0, 1))
+
+        # Register this button for arrow-key grid navigation: every cell
+        # it visually occupies (accounting for columnspan) maps to it, and
+        # its top-left cell is stored as its anchor position for computing
+        # "one step up/down/left/right" from wherever it currently sits.
+        for spanned_col in range(col, col + columnspan):
+            self._grid_nav.position_to_widget[(row, spanned_col)] = btn
+        self._grid_nav.widget_to_position[btn] = (row, col)
+
         return btn
+
+    def _move_focus(self, delta_row, delta_col):
+        """
+        Move keyboard focus one step in a given direction across the
+        visual keypad grid (e.g. delta_row=-1 for Up, delta_col=1 for
+        Right), skipping empty cells and cells still belonging to the
+        currently-focused key itself (relevant for the wide "0" key and
+        the tall Gamma key, which each occupy more than one grid cell).
+
+        Args:
+            delta_row (int): -1 to move up, +1 to move down, 0 for none.
+            delta_col (int): -1 to move left, +1 to move right, 0 for none.
+        """
+        focused = self.focus_get()
+        if focused not in self._grid_nav.widget_to_position:
+            return  # focus isn't currently on a calculator key
+
+        row, col = self._grid_nav.widget_to_position[focused]
+
+        # Step outward in the requested direction until a different,
+        # existing key is found, or the edge of the grid is reached.
+        # MAX_GRID_STEPS bounds the search to the largest plausible gap
+        # (this keypad is 5 rows by 4 columns), so a malformed position
+        # can never cause an infinite loop.
+        max_grid_steps = 5
+        for _ in range(max_grid_steps):
+            row += delta_row
+            col += delta_col
+            if not (0 <= row <= 4 and 0 <= col <= 3):
+                return  # stepped off the grid -- nothing to focus
+            target = self._grid_nav.position_to_widget.get((row, col))
+            if target is not None and target != focused:
+                target.focus_set()
+                return
+            # target is None (empty cell) or the same wide/tall key we're
+            # already on -- keep stepping in the same direction.
 
     # ----------------------------------------------------------------
     # Keypad behaviour
