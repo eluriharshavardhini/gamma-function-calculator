@@ -1,3 +1,19 @@
+"""
+test_gamma.py
+=============
+Unit tests for the Gamma function calculator (SOEN 6011, Deliverable 3,
+Problem 8).
+
+Uses Python's built-in `unittest` module (also known as PyUnit).
+
+Run with:
+    python3 -m unittest test_gamma.py -v
+
+Files under test:
+    gamma_scratch.py  - the gamma(x) function and its custom exceptions
+    scratch_math.py   - the custom sqrt/exp/ln/sin primitives it's built on
+"""
+
 import unittest
 import math
 import random
@@ -11,6 +27,7 @@ class TestGammaKnownValues(unittest.TestCase):
     Gamma(n) = (n-1)! identity for positive integers."""
 
     def test_gamma_of_positive_integers(self):
+        """Gamma(n) should equal (n-1)! for positive integers."""
         # Gamma(n) = (n-1)! -- e.g. Gamma(5) = 4! = 24
         self.assertAlmostEqual(gamma(1), 1, places=5)
         self.assertAlmostEqual(gamma(2), 1, places=5)
@@ -19,18 +36,22 @@ class TestGammaKnownValues(unittest.TestCase):
         self.assertAlmostEqual(gamma(6), 120, places=5)
 
     def test_gamma_of_half_integer(self):
+        """Gamma(0.5) should equal sqrt(pi), a known closed form."""
         # Gamma(0.5) = sqrt(pi), a well-known closed-form special case
         self.assertAlmostEqual(gamma(0.5), math.sqrt(math.pi), places=5)
 
     def test_gamma_of_positive_decimal(self):
+        """Gamma(4.5) should match its known reference value."""
         # Gamma(4.5) has a known value, independently computable
         self.assertAlmostEqual(gamma(4.5), 11.631728, places=5)
 
     def test_gamma_of_negative_decimal(self):
+        """Gamma(-0.5) should be correct via Euler's reflection."""
         # Exercises Euler's reflection formula (x < 0.5 branch)
         self.assertAlmostEqual(gamma(-0.5), -3.544908, places=5)
 
     def test_gamma_matches_math_library_across_range(self):
+        """gamma(x) should match math.gamma(x) across many values."""
         # Broad cross-check against Python's own math.gamma as the
         # reference implementation (this is AS-3 from our requirements).
         #
@@ -55,16 +76,19 @@ class TestGammaDomainErrors(unittest.TestCase):
     a wrong number."""
 
     def test_zero_raises_domain_error(self):
+        """gamma(0) should raise GammaDomainError, not crash."""
         with self.assertRaises(GammaDomainError):
             gamma(0)
 
     def test_negative_integers_raise_domain_error(self):
+        """Every negative integer is a pole and should raise."""
         for x in [-1, -2, -3, -10, -50]:
             with self.subTest(x=x):
                 with self.assertRaises(GammaDomainError):
                     gamma(x)
 
     def test_error_message_mentions_the_input(self):
+        """The domain error message should name the bad input."""
         # Error messages must be "helpful to users" -- check the message
         # actually names the value that caused the problem.
         try:
@@ -78,6 +102,7 @@ class TestGammaOverflowAndUnderflow(unittest.TestCase):
     """Check the boundary behavior near the limits of 64-bit float range."""
 
     def test_within_range_does_not_raise(self):
+        """gamma(171) is within range and should not raise."""
         # x = 171 should still compute successfully
         try:
             result = gamma(171)
@@ -86,11 +111,13 @@ class TestGammaOverflowAndUnderflow(unittest.TestCase):
             self.fail("gamma(171) should not raise GammaOverflowError")
 
     def test_beyond_boundary_raises_overflow_error(self):
+        """gamma(172) exceeds float64 range and should raise."""
         # x = 172 exceeds what a 64-bit float can represent
         with self.assertRaises(GammaOverflowError):
             gamma(172)
 
     def test_far_negative_underflows_to_zero_not_an_error(self):
+        """Very negative non-integer x should underflow to 0.0."""
         # Very negative non-integer x should return 0.0 gracefully,
         # not raise an exception (this is a documented boundary, AS-1).
         result = gamma(-200.5)
@@ -102,15 +129,18 @@ class TestCustomMathPrimitives(unittest.TestCase):
     since gamma() depends entirely on their correctness."""
 
     def test_custom_sqrt_matches_math_sqrt(self):
+        """custom_sqrt should match math.sqrt across magnitudes."""
         for x in [0, 1, 2, 4, 100, 0.25, 1e10, 1e-6]:
             with self.subTest(x=x):
                 self.assertAlmostEqual(custom_sqrt(x), math.sqrt(x), places=6)
 
     def test_custom_sqrt_rejects_negative_input(self):
+        """custom_sqrt should reject negative input with an error."""
         with self.assertRaises(ValueError):
             custom_sqrt(-1)
 
     def test_custom_exp_matches_math_exp(self):
+        """custom_exp should match math.exp across a range of x."""
         for x in [0, 1, -1, 5, -5, 20, -20]:
             with self.subTest(x=x):
                 tolerance = abs(math.exp(x)) * 1e-8
@@ -119,17 +149,20 @@ class TestCustomMathPrimitives(unittest.TestCase):
                 )
 
     def test_custom_ln_matches_math_log(self):
+        """custom_ln should match math.log for positive values."""
         for x in [0.5, 1, 2, 10, 100, 1000]:
             with self.subTest(x=x):
                 self.assertAlmostEqual(custom_ln(x), math.log(x), places=6)
 
     def test_custom_ln_rejects_non_positive_input(self):
+        """custom_ln should reject zero and negative input."""
         with self.assertRaises(ValueError):
             custom_ln(0)
         with self.assertRaises(ValueError):
             custom_ln(-5)
 
     def test_custom_sin_matches_math_sin(self):
+        """custom_sin should match math.sin across a range of x."""
         for x in [0, PI / 2, PI, -PI / 2, 10, -7]:
             with self.subTest(x=x):
                 self.assertAlmostEqual(custom_sin(x), math.sin(x), places=6)
@@ -152,6 +185,7 @@ class TestGammaRandomizedFuzz(unittest.TestCase):
     """
 
     def test_random_positive_values_match_reference(self):
+        """200 random positive inputs should match math.gamma."""
         random.seed(42)
         for _ in range(200):
             x = random.uniform(0.01, 170)
@@ -167,6 +201,7 @@ class TestGammaRandomizedFuzz(unittest.TestCase):
                 self.assertLess(relative_error, 1e-6)
 
     def test_random_negative_non_integer_values_match_reference(self):
+        """200 random negative non-integers should match math.gamma."""
         random.seed(7)
         for _ in range(200):
             # Random negative non-integers, avoiding poles: pick a random
@@ -181,6 +216,7 @@ class TestGammaRandomizedFuzz(unittest.TestCase):
                 self.assertLess(relative_error, 1e-6)
 
     def test_random_values_never_crash_unexpectedly(self):
+        """500 random inputs should never raise an unhandled error."""
         # A broader sweep across the full supported range, confirming
         # every call either returns a float or raises one of our two
         # documented exceptions -- never an unhandled crash.

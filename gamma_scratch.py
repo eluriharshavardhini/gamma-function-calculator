@@ -21,12 +21,10 @@ from scratch_math import (
 class GammaDomainError(ValueError):
     """Raised when x falls on a true singularity of the Gamma function
     (zero or a negative integer)."""
-    pass
 
 
 class GammaOverflowError(OverflowError):
     """Raised when the true result would exceed standard 64-bit float range."""
-    pass
 
 
 # Lanczos coefficients (g=7, n=9) -- these are precomputed constants for the
